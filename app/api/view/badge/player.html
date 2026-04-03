@@ -133,8 +133,8 @@
     <div class="player">
         <div class="img">
             <img id="img" src="https://img2.kuwo.cn/star/albumcover/500/36/9/13515874.jpg" class="picture love" />
-            <img src="https://bbbug.hamm.cn//new/images/player_bg.png" class="bg love" />
-            <img src="https://bbbug.hamm.cn//new/images/player_bar.png" class="bar" />
+            <img src="https://music.eggedu.cn//new/images/player_bg.png" class="bg love" />
+            <img src="https://music.eggedu.cn//new/images/player_bar.png" class="bar" />
         </div>
         <div class="info">
             <div class="name" id="name">数据加载中...</div>
@@ -156,7 +156,7 @@
         document.getElementById("audio").play();
     }
     function getWssUrl() {
-        $.post("https://api.bbbug.com/api/room/getWebsocketUrl", {
+        $.post("https://music.eggedu.cn/api/room/getWebsocketUrl", {
             access_token: '{$access_token}',
             plat: 'player',
             version: 10000,
@@ -198,7 +198,7 @@
                         document.getElementById('name').innerHTML = json.song.name + " - " + json.song.singer;
                         document.getElementById('user').innerHTML = "点歌人: " + json.user.user_name;
                         document.getElementById('img').src = json.song.pic;
-                        document.getElementById('audio').src = 'https://api.bbbug.com//api/song/playurl?mid=' + json.song.mid;
+                        document.getElementById('audio').src = 'https://music.eggedu.cn/api/song/playurl?mid=' + json.song.mid;
                         document.getElementById("audio").play();
                     }
                     break;

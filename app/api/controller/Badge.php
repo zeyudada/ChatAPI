@@ -15,7 +15,7 @@ class Badge extends BaseController
         $song = [
             'name' => '歌曲读取中',
             'singer' => 'Loading...',
-            'pic' => 'https://bbbug.hamm.cn/new/images/loading.png'
+            'pic' => 'https://music.eggedu.cn/new/images/loading.png'
         ];
         $userName = '';
         if ($now) {
@@ -29,9 +29,9 @@ class Badge extends BaseController
         $userName = htmlentities($userName);
         $song["pic"] = "data:image/jpeg;base64," . base64_encode(file_get_contents($song["pic"]));
 
-        $song["bg"] = "data:image/jpeg;base64," . base64_encode(file_get_contents("https://bbbug.hamm.cn//new/images/player_bg.png"));
+        $song["bg"] = "data:image/jpeg;base64," . base64_encode(file_get_contents("https://music.eggedu.cn//new/images/player_bg.png"));
 
-        $song["bar"] = "data:image/jpeg;base64," . base64_encode(file_get_contents("https://bbbug.hamm.cn//new/images/player_bar.png"));
+        $song["bar"] = "data:image/jpeg;base64," . base64_encode(file_get_contents("https://music.eggedu.cn//new/images/player_bar.png"));
         $song['name'] = html_entity_decode($song['name']);
         $roomModel = new RoomModel();
         $room = $roomModel->getRoomById($room_id);
@@ -75,13 +75,13 @@ class Badge extends BaseController
     </g>
     
     
-    <a xlink:href="https://bbbug.com/{$room['room_id']}" target="_blank" style="cursor:pointer;">
+    <a xlink:href="https://music.eggedu.cn/{$room['room_id']}" target="_blank" style="cursor:pointer;">
         <g font-family="Consolas, PingFangSC-Regular, Microsoft YaHei" font-size="12" text-anchor="right">
             <text size="16" x="137" y="119" fill="#000">ID:{$room['room_id']} {$room['room_name']}</text>
             <text size="16" x="138" y="120" fill="#666">ID:{$room['room_id']} {$room['room_name']}</text>
         </g>
     </a>
-    <a xlink:href="https://bbbug.com/" target="_blank" style="cursor:pointer;">
+    <a xlink:href="https://music.eggedu.cn/" target="_blank" style="cursor:pointer;">
         <g font-family="Consolas, PingFangSC-Regular, Microsoft YaHei" font-size="12" text-anchor="right">
             <text size="16" x="320" y="158" fill="#aaa" >BBBUG.COM</text>
         </g>
@@ -116,7 +116,7 @@ XMLDATA;
         $roomModel = new RoomModel();
         $room = $roomModel->getRoomById($room_id);
         if (!$room) {
-            header('Location: https://bbbug.com');
+            header('Location: https://music.eggedu.cn');
             return;
         }
         View::assign('room', $room);

@@ -1,6 +1,7 @@
 /.idea
 /.vscode
 /vendor
+/node_modules
 /public/install
 /public/music
 /public/weapp_code
@@ -11,3 +12,5 @@ composer.lock
 /app/api/controller/Test.php
 /app/command/Test.php
 /app/api/view/test
+package-lock.json
+node_modules/.package-lock.json

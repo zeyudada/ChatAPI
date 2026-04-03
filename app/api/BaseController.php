@@ -39,6 +39,7 @@ abstract class BaseController
     protected $userModel;
     protected $accessModel;
     protected $confModel;
+    protected $user = null;
 
     /**
      * Request实例

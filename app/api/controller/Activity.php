@@ -15,13 +15,13 @@ class Activity extends BaseController
     {
         $user_id =  input('user_id');
         if (!$user_id) {
-            header('Location: https://bbbug.com');
+            header('Location: https://music.eggedu.cn');
             die;
         }
         $userModel = new UserModel();
         $user = $userModel->where('user_id', $user_id)->find();
         if (!$user) {
-            header('Location: https://bbbug.com');
+            header('Location: https://music.eggedu.cn');
             die;
         }
 

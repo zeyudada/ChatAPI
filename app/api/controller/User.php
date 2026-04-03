@@ -425,7 +425,8 @@ class User extends BaseController
 
         if (input('user_head')) {
             $data['user_head'] = input('user_head');
-            if (strpos(strtolower($data['user_head']), '.gif') !== FALSE) {
+            $userHeadPath = strtolower(parse_url(urldecode($data['user_head']), PHP_URL_PATH) ?? urldecode($data['user_head']));
+            if (strpos($userHeadPath, '.gif') !== FALSE) {
                 return jerr('头像不支持Gif,不要尝试钻空子');
             }
         }
@@ -450,19 +451,9 @@ class User extends BaseController
             }
         }
         if (!empty($data['user_head'])) {
-            $domain = getTopHost(urldecode($data['user_head']));
-            if ($domain) {
-                if (strpos($domain, getTopHost(config('startadmin.api_url'))) === FALSE && strpos($domain, getTopHost(config('startadmin.static_url'))) === FALSE) {
-                    $obj = getimagesize(urldecode($data['user_head']));
-                    if (!$obj || end($obj) == "image/gif") {
-                        unset($data['user_head']);
-                    }
-                } else {
-                    $obj = getimagesize(urldecode($data['user_head']));
-                    if (!$obj || end($obj) == "image/gif") {
-                        unset($data['user_head']);
-                    }
-                }
+            $userHead = urldecode($data['user_head']);
+            if (!isAllowedAvatarPath($userHead)) {
+                return jerr('头像不合法！');
             }
         }
 
@@ -780,8 +771,8 @@ class User extends BaseController
         switch ($from) {
             case 'qq':
                 $app_id = '1003';
-                $cliend_id = '101904044';
-                $client_key = 'b3e2cace11af99c7354409422ecbab51';
+                $cliend_id = '1903754520';
+                $client_key = 'WxDOPDn9IDuNcrvm';
                 $redirect_uri = config('startadmin.frontend_url') . 'qq';
                 $url = "https://graph.qq.com/oauth2.0/token?grant_type=authorization_code&code={$code}&client_id={$cliend_id}&redirect_uri={$redirect_uri}&client_secret=" . $client_key;
                 $result = curlHelper($url);
@@ -831,8 +822,8 @@ class User extends BaseController
                 break;
             case 'gitee':
                 $app_id = '1001';
-                $cliend_id = 'd2c3e3c6f5890837a69c65585cc14488e4075709db1e89d4cb4c64ef1712bdbb';
-                $client_key = 'eca633af5faf95fb1e5a6e605347683dddb5485b574cc3303ba0a27c2cefc9a6';
+                $cliend_id = 'a89bece70c32f8d13b724295a9863e030770ff42dd13cb30f417de2f691459f6';
+                $client_key = 'd6ec63a5955c8c41ef4ec6ceaf134a5a1e714a0f1f040feda5e57529c1583b44';
                 $redirect_uri = config('startadmin.frontend_url') . 'gitee';
                 $url = "https://gitee.com/oauth/token?grant_type=authorization_code&code={$code}&client_id=" . $cliend_id . "&redirect_uri={$redirect_uri}&client_secret=" . $client_key;
                 $result = curlHelper($url, 'POST', [], [], "");
@@ -879,8 +870,8 @@ class User extends BaseController
                 break;
             case 'oschina':
                 $app_id = '1002';
-                $cliend_id = 'utwQOfbgBgBcwBolfNft';
-                $client_key = '0cAwcRfuuCcQhJUgt1ynKldwmxfymJ8n';
+                $cliend_id = 'R9nKsOJENQzVAtkgFyno';
+                $client_key = 'xtumLg2WMAQrTaZ8MtbITOIo5R98Mz3Q';
                 $redirect_uri = config('startadmin.frontend_url') . 'oschina';
                 $url = "https://www.oschina.net/action/openapi/token?grant_type=authorization_code&code={$code}&client_id=" . $cliend_id . "&redirect_uri={$redirect_uri}&client_secret=" . $client_key;
                 $result = curlHelper($url, 'POST', [], [], "");
@@ -922,8 +913,8 @@ class User extends BaseController
                 break;
             case 'ding':
                 $app_id = '1004';
-                $cliend_id = 'dingoag8afgz20g2otw0jf';
-                $client_key = 'fkWK4AanFg_U96xC2Jh1oH_-CcDXNPVHzAnrg_vNNsZRS5nxDj-Zp61qiFXTGGXs';
+                $cliend_id = 'dingjqfaya7j6vywcwwf';
+                $client_key = 'eCXkO9sov3I6GUql_q9AluAVhYg1Dh4XcG_gHOmoWiX8XWGod6uYHfMiRZWqFP3Z';
                 $time = time() . "000";
                 $s = hash_hmac('sha256', $time, $client_key, true);
                 $signature = base64_encode($s);

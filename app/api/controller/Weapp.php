@@ -3,11 +3,13 @@
 namespace app\api\controller;
 
 use think\App;
-use EasyWeChat\Factory;
 use app\api\BaseController;
 use app\model\Weapp as WeappModel;
 use app\model\User as UserModel;
 use app\model\Access as AccessModel;
+use EasyWeChat\MiniApp\Application;
+use Symfony\Component\Mime\Part\DataPart;
+use Symfony\Component\Mime\Part\Multipart\FormDataPart;
 
 class Weapp extends BaseController
 {
@@ -40,32 +42,66 @@ class Weapp extends BaseController
                 'timeout' => 4.0,
             ],
         ];
-        $this->easyWeApp = Factory::miniProgram($weapp_config);
+        $this->easyWeApp = new Application($weapp_config);
         return null;
+    }
+    private function miniAppJson(string $uri, array $payload): array
+    {
+        return $this->easyWeApp->getClient()->postJson($uri, $payload)->toArray(false);
+    }
+    private function miniAppUpload(string $uri, string $path): array
+    {
+        $formData = new FormDataPart([
+            'media' => DataPart::fromPath($path),
+        ]);
+        $response = $this->easyWeApp->getClient()->request('POST', $uri, [
+            'headers' => $formData->getPreparedHeaders()->toArray(),
+            'body' => $formData->bodyToString(),
+        ]);
+        return $response->toArray(false);
+    }
+    private function saveMiniAppCode(string $roomId): string
+    {
+        if (!is_dir('./weapp_code')) {
+            mkdir('./weapp_code', 0755, true);
+        }
+        $filename = $roomId . '.jpg';
+        $this->easyWeApp->getClient()->postJson('/wxa/getwxacodeunlimit', [
+            'scene' => $roomId,
+            'page' => 'pages/index/index',
+            'width' => 600,
+        ])->saveAs('./weapp_code/' . $filename);
+        return $filename;
     }
     public function checkText($string){
         $error = $this->initWeAppConfig();
         if ($error) {
             return $error;
         }
-        $response = $this->easyWeApp->content_security->checkText($string);
-        if($response['errcode'] == 87014){
+        $response = $this->miniAppJson('/wxa/msg_sec_check', [
+            'content' => $string,
+        ]);
+        if (($response['errcode'] ?? 0) == 87014) {
             return jerr("你输入的内容过于敏感");
-        }else{
-            return false;
         }
+        if (($response['errcode'] ?? 0) != 0) {
+            return jerr($response['errmsg'] ?? '内容安全检测失败');
+        }
+        return false;
     }
     public function checkImg($img){
         $error = $this->initWeAppConfig();
         if ($error) {
             return $error;
         }
-        $response = $this->easyWeApp->content_security->checkImage($img);
-        if($response['errcode'] == 87014){
+        $response = $this->miniAppUpload('/wxa/img_sec_check', $img);
+        if (($response['errcode'] ?? 0) == 87014) {
             return jerr("图片过于敏感，发送失败");
-        }else{
-            return false;
         }
+        if (($response['errcode'] ?? 0) != 0) {
+            return jerr($response['errmsg'] ?? '图片安全检测失败');
+        }
+        return false;
     }
     public function qrcode()
     {
@@ -76,13 +112,9 @@ class Weapp extends BaseController
         if (!input('room_id')) {
             return jerr('room_id missing');
         }
-        $room_id = input('room_id');
-        $response = $this->easyWeApp->app_code->getUnlimit($room_id, [
-            'page'  => 'pages/index/index',
-            'width' => 600,
-        ]);
-        $filename = $response->save('./weapp_code/', $room_id . '.jpg');
-        header('Location: https://bbbug.hamm.cn/weapp_code/' . $filename);
+        $room_id = (string) input('room_id');
+        $filename = $this->saveMiniAppCode($room_id);
+        header('Location: https://music.eggedu.cn/weapp_code/' . $filename);
         //FUCK YOUR BUG 上面的地址改成你自己的API地址
     }
     public function test()
@@ -94,13 +126,8 @@ class Weapp extends BaseController
         if (!input('room_id')) {
             return jerr('room_id missing');
         }
-        $room_id = input('room_id');
-        $response = $this->easyWeApp->app_code->getUnlimit($room_id, [
-            'page'  => 'pages/index/index',
-            'width' => 600,
-        ]);
-        print_r($response);
-        $filename = $response->save('./weapp_code/', $room_id . '.jpg');
+        $room_id = (string) input('room_id');
+        $filename = $this->saveMiniAppCode($room_id);
         echo $filename;
     }
     /**
@@ -118,13 +145,13 @@ class Weapp extends BaseController
         $accessModel = new AccessModel();
         if (input("?code")) {
             $code = input("code");
-            $ret = $this->easyWeApp->auth->session($code);
+            $ret = $this->easyWeApp->getUtils()->codeToSession($code);
             if (array_key_exists("session_key", $ret)) {
                 $session_key = $ret['session_key'];
                 $openid = $ret['openid'];
                 $app_id = 1005;
                 $nickname = '小程序' . rand(1000, 9999);
-                $head = 'https://bbbug.hamm.cn/new/images/nohead.jpg';
+                $head = 'https://music.eggedu.cn/new/images/nohead.jpg';
                 $extra = $openid;
                 $sex = 0;
                 $user = $userModel->where('user_openid', $openid)->where('user_app', $app_id)->find();
@@ -166,7 +193,7 @@ class Weapp extends BaseController
             $encryptedData = input("encryptedData");
             $session_key = input("session_key");
             try {
-                $decryptedData = $this->easyWeApp->encryptor->decryptData($session_key, $iv, $encryptedData);
+                $decryptedData = $this->easyWeApp->getUtils()->decryptSession($session_key, $iv, $encryptedData);
 
                 if (array_key_exists("phoneNumber", $decryptedData)) {
                     return jok('success', [
@@ -175,7 +202,7 @@ class Weapp extends BaseController
                 } else {
                     return jerr("解密出了问题");
                 }
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 return jerr($e->getMessage());
             }
         } else {

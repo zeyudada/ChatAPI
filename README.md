@@ -12,7 +12,7 @@
 
 
 <p align="center">
-<a href="https://demo.bbbug.com" target="_blank"><img src="https://api.bbbug.com/api/badge/888"/></a>
+<a href="https://demo.bbbug.com" target="_blank"><img src="https://music.eggedu.cn/api/badge/888"/></a>
 </p>
 
 

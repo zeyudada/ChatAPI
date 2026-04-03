@@ -13,6 +13,11 @@ use think\App;
 
 class Song extends BaseController
 {
+    private const DEFAULT_MUSIC_API_KEY = '4bc1a9ff1839405fabf7d592fcb085cc';
+    private const DEFAULT_MUSIC_API_BASE_URL = 'https://myhkw.cn/open/music';
+    private const DEFAULT_MUSIC_SOURCE = 'kw';
+    private const DEFAULT_SONG_LENGTH = 300;
+
     public function __construct(App $app)
     {
         parent::__construct($app);
@@ -21,65 +26,19 @@ class Song extends BaseController
     public function searchChrome()
     {
         if (!input("keyword")) {
-            header("Location: https://bbbug.com");
+            header("Location: https://music.eggedu.cn");
             die;
         }
         $page = 1;
-        $list = [];
-        $kuwo_list = [];
         $keyword = input('keyword');
-        $randNumber = rand(10000000, 99999999);
-        $result = curlHelper('http://bd.kuwo.cn/api/www/search/searchMusicBykeyWord?key=' . rawurlencode($keyword) . '&pn='.$page.'&rn=50', 'GET', null, [
-            'csrf: ' . $randNumber,
-            'Referer: http://bd.kuwo.cn',
-        ], "kw_token=" . $randNumber);
-        $arr = json_decode($result['body'], true);
-        if ($arr['code'] == 200) {
-            try {
-                $kuwo_list = $arr['data']['list'];
-            } catch (\Exception $e) {
-                echo '<center><h1>搜索失败,正在返回主站</h1><hr><br><br><img src="https://bbbug.hamm.cn/images/linus.jpg"
-                height="300px" /></center><script>setTimeout(function(){location.replace("https://bbbug.com");},3000);</script>';die;
-            }
-        } else {
-            echo '<center><h1>搜索失败,正在返回主站</h1><hr><br><br><img src="https://bbbug.hamm.cn/images/linus.jpg"
-            height="300px" /></center><script>setTimeout(function(){location.replace("https://bbbug.com");},3000);</script>';die;
+        $list = $this->searchMusicByKeyword($keyword, $page, 50);
+        if (!$list) {
+            echo '<center><h1>搜索失败,正在返回主站</h1><hr><br><br><img src="https://music.eggedu.cn/images/linus.jpg"
+            height="300px" /></center><script>setTimeout(function(){location.replace("https://music.eggedu.cn");},3000);</script>';die;
         }
-        if (count($kuwo_list) > 0) {
-            $songModel = new SongModel();
-            for ($i = 0; $i < count($kuwo_list); $i++) {
-                $song = $kuwo_list[$i];
-                $songPicture = config('startadmin.static_url') . '/new/images/logo.png';
-                $songPictureFromCache = cache("song_picture_" . $song['rid']) ?? false;
-                if($songPictureFromCache){
-                    $songPicture = $songPictureFromCache;
-                }else{
-                    $songFromDatabase = $songModel->where('song_mid',$song['rid'])->find();
-                    if($songFromDatabase){
-                        $songPicture = $songFromDatabase['song_pic'];
-                    }
-                }
 
-
-                $temp = [
-                    'mid' => $song['rid'],
-                    'name' => html_entity_decode($song['name']),
-                    'pic' => $songPicture,
-                    'length' => $song['duration'],
-                    'singer' => str_replace('&apos;', "'", html_entity_decode($song['artist'])),
-                    'album' => str_replace('&apos;', "'", html_entity_decode($song['album'] ?? ""))
-                ];
-                array_push($list, $temp);
-                cache('song_detail_' . $song['rid'], $temp, 3600);
-            }
-            cache("music_search_list_keyword_new_" . sha1($keyword), $kuwo_list, 3600);
-            View::assign('list', $list);
-    
-            return View::fetch();
-        } else {
-            echo '<center><h1>搜索失败,正在返回主站</h1><hr><br><br><img src="https://bbbug.hamm.cn/images/linus.jpg"
-            height="300px" /></center><script>setTimeout(function(){location.replace("https://bbbug.com");},3000);</script>';die;
-        }
+        View::assign('list', $list);
+        return View::fetch();
     }
     public function search()
     {
@@ -105,55 +64,8 @@ class Song extends BaseController
             $keyword = input('keyword');
         }
 
-        $list = [];
-        $kuwo_list = [];
-        $randNumber = rand(10000000, 99999999);
-        $result = curlHelper('http://bd.kuwo.cn/api/www/search/searchMusicBykeyWord?key=' . rawurlencode($keyword) . '&pn='.$page.'&rn=50', 'GET', null, [
-            'csrf: ' . $randNumber,
-            'Referer: http://bd.kuwo.cn',
-        ], "kw_token=" . $randNumber);
-        $arr = json_decode($result['body'], true);
-        if ($arr['code'] == 200) {
-            try {
-                $kuwo_list = $arr['data']['list'];
-            } catch (\Exception $e) {
-                return jerr('搜索失败,建议重试');
-            }
-        } else {
-            return jerr('搜索失败,建议重试');
-        }
-        if (count($kuwo_list) > 0) {
-            $songModel = new SongModel();
-            for ($i = 0; $i < count($kuwo_list); $i++) {
-                $song = $kuwo_list[$i];
-                $songPicture = config('startadmin.static_url') . '/new/images/logo.png';
-                $songPictureFromCache = cache("song_picture_" . $song['rid']) ?? false;
-                if($songPictureFromCache){
-                    $songPicture = $songPictureFromCache;
-                }else{
-                    $songFromDatabase = $songModel->where('song_mid',$song['rid'])->find();
-                    if($songFromDatabase){
-                        $songPicture = $songFromDatabase['song_pic'];
-                    }
-                }
-
-
-                $temp = [
-                    'mid' => $song['rid'],
-                    'name' => html_entity_decode($song['name']),
-                    'pic' => $songPicture,
-                    'length' => $song['duration'],
-                    'singer' => str_replace('&apos;', "'", html_entity_decode($song['artist'])),
-                    'album' => str_replace('&apos;', "'", html_entity_decode($song['album'] ?? ""))
-                ];
-                array_push($list, $temp);
-                cache('song_detail_' . $song['rid'], $temp, 3600);
-            }
-            cache("music_search_list_keyword_new_" . sha1($keyword), $kuwo_list, 3600);
-            return jok('', $list);
-        } else {
-            return jok('success', $list);
-        }
+        $list = $this->searchMusicByKeyword($keyword, $page, 50);
+        return jok('success', $list);
     }
     public function deleteMySong()
     {
@@ -309,22 +221,10 @@ class Song extends BaseController
 
 
         $songModel = new SongModel();
-        if ($song['mid'] > 0) {
-            //尝试同步一个图片回来
-            $result = curlHelper("http://wapi.kuwo.cn/api/www/music/musicInfo?mid=" . $song['mid'] . "&httpsStatus=1", "GET");
-            $arr = json_decode($result['body'], true);
-            if ($arr['code'] != 200) {
+        if ($this->isExternalSong($song['mid'])) {
+            $song = $this->syncSongDetail($songModel, $song);
+            if (!$song) {
                 return jerr("歌曲信息获取失败");
-            }
-            try {
-                $songDetailTemp = $arr['data'];
-                $songModel->where('song_mid', $song['mid'])->update([
-                    'song_pic' => $songDetailTemp['pic'],
-                    'song_length' => $songDetailTemp['duration']
-                ]);
-                $song['pic'] = $songDetailTemp['pic'];
-                cache("song_picture_" . $song['rid'], $song['pic']);
-            } catch (\Exception $e) {
             }
         }
         cache('song_detail_' . $song['mid'], $song, 3600);
@@ -400,22 +300,10 @@ class Song extends BaseController
             }
         }
         $songModel = new SongModel();
-        if ($song['mid'] > 0) {
-            //尝试同步一个图片回来
-            $result = curlHelper("http://wapi.kuwo.cn/api/www/music/musicInfo?mid=" . $song['mid'] . "&httpsStatus=1", "GET");
-            $arr = json_decode($result['body'], true);
-            if ($arr['code'] != 200) {
+        if ($this->isExternalSong($song['mid'])) {
+            $song = $this->syncSongDetail($songModel, $song);
+            if (!$song) {
                 return jerr("歌曲信息获取失败");
-            }
-            try {
-                $songDetailTemp = $arr['data'];
-                $songModel->where('song_mid', $song['mid'])->update([
-                    'song_pic' => $songDetailTemp['pic'],
-                    'song_length' => $songDetailTemp['duration'],
-                ]);
-                $song['pic'] = $songDetailTemp['pic'];
-                cache("song_picture_" . $song['rid'], $song['pic']);
-            } catch (\Exception $e) {
             }
         }
         cache('song_detail_' . $song['mid'], $song, 3600);
@@ -703,7 +591,7 @@ class Song extends BaseController
             return jerr('参数错误,mid缺失');
         }
         $mid = input('mid');
-        if (intval($mid) < 0) {
+        if ($this->isUploadedSong($mid)) {
             return jok('', [
                 [
                     'lineLyric' => '歌曲为用户上传,暂无歌词',
@@ -711,19 +599,13 @@ class Song extends BaseController
                 ],
             ]);
         }
-        $randNumber = rand(10000000, 99999999);
-        $res = curlHelper("http://m.kuwo.cn/newh5/singles/songinfoandlrc?musicId=" . $mid, 'GET', null, [
-            'csrf: ' . $randNumber,
-        ], "kw_token=" . $randNumber);
-        $data = json_decode($res['body'], true);
-        if ($data['status'] == 200) {
-            if (count($data['data']['lrclist']) > 0) {
-                $data['data']['lrclist'][0] = [
-                    'lineLyric' => '歌词加载成功',
-                    'time' => 0,
-                ];
-            }
-            return jok('', $data['data']['lrclist']);
+        $lrcList = $this->getMusicLrcByMid($mid);
+        if ($lrcList) {
+            array_unshift($lrcList, [
+                'lineLyric' => '歌词加载成功',
+                'time' => 0,
+            ]);
+            return jok('', $lrcList);
         } else {
             return jok('', [
                 [
@@ -913,49 +795,42 @@ class Song extends BaseController
             exit;
         }
         $mid = input('mid');
-        $url = cache('song_play_temp_url_20211026_' . $mid) ?? false;
+        $url = cache('song_play_temp_url_' . $mid) ?? false;
         if ($url) {
             return jok('', [
                 'url' => $url,
             ]);
         }
-        if ($mid < 0) {
+        if ($this->isUploadedSong($mid)) {
             //自己上传的
             $attachModel = new AttachModel();
-            $attach = $attachModel->where('attach_id', (0 - intval($mid)))->find();
+            $attach = $attachModel->where('attach_id', $this->getUploadAttachId($mid))->find();
             if (!$attach) {
                 header("status: 404 Not Found");
                 die;
             }
             $path = config('startadmin.static_url') . 'uploads/' . $attach['attach_path'];
-            cache('song_play_temp_url_20211026_' . $mid, $path, 30);
+            cache('song_play_temp_url_' . $mid, $path, 30);
             return jok('', [
                 'url' => $path,
             ]);
             die;
         }
         
-        // $url = 'http://bd.kuwo.cn/url?rid=' . $mid . '&type=convert_url3&br=128kmp3';
-        $url = 'http://m.kuwo.cn/newh5app/api/mobile/v1/music/src/'.$mid;
-        $result = curlHelper($url)['body'];
-        $arr = json_decode($result, true);
-        if ($arr['code'] != 200) {
+        $url = $this->getMusicPlayUrlByMid($mid);
+        if (!$url) {
             return jerr('歌曲链接获取失败');
         } else {
-            if ($arr['data']['url']) {
-                $tempList = cache('song_waiting_download_list_20211026_') ?? [];
-                array_push($tempList, [
-                    'mid' => $mid,
-                    'url' => $arr['data']['url']
-                ]);
-                cache('song_waiting_download_list_20211026_', $tempList);
-                cache('song_play_temp_url_20211026_' . $mid, $arr['data']['url'], 30);
-                return jok('', [
-                    'url' => $arr['data']['url'],
-                ]);
-            } else {
-                return jerr('歌曲链接获取失败');
-            }
+            $tempList = cache('song_waiting_download_list') ?? [];
+            array_push($tempList, [
+                'mid' => $mid,
+                'url' => $url
+            ]);
+            cache('song_waiting_download_list', $tempList);
+            cache('song_play_temp_url_' . $mid, $url, 30);
+            return jok('', [
+                'url' => $url,
+            ]);
         }
     }
     public function getSongList()
@@ -974,45 +849,333 @@ class Song extends BaseController
             exit;
         }
         $mid = input('mid');
-        $url = cache('song_play_temp_url_20211026_' . $mid) ?? false;
+        $url = cache('song_play_temp_url_' . $mid) ?? false;
         if ($url) {
             header("Cache: From Redis");
             header("Location: " . $url);
             die;
         }
-        if ($mid < 0) {
+        if ($this->isUploadedSong($mid)) {
             //自己上传的
             $attachModel = new AttachModel();
-            $attach = $attachModel->where('attach_id', (0 - intval($mid)))->find();
+            $attach = $attachModel->where('attach_id', $this->getUploadAttachId($mid))->find();
             if (!$attach) {
                 header("status: 404 Not Found");
                 die;
             }
             $path = config('startadmin.static_url') . 'uploads/' . $attach['attach_path'];
-            cache('song_play_temp_url_20211026_' . $mid, $path, 30);
+            cache('song_play_temp_url_' . $mid, $path, 30);
             header("Location: " . $path);
             die;
         }
 
-        $url = 'http://m.kuwo.cn/newh5app/api/mobile/v1/music/src/'.$mid;
-        $result = curlHelper($url)['body'];
-        $arr = json_decode($result, true);
-        if ($arr['code'] != 200) {
+        $url = $this->getMusicPlayUrlByMid($mid);
+        if (!$url) {
             //获取播放地址失败了
             die;
         } else {
-            if ($arr['data']['url']) {
-                $tempList = cache('song_waiting_download_list_20211026_') ?? [];
-                array_push($tempList, [
-                    'mid' => $mid,
-                    'url' => $arr['data']['url']
-                ]);
-                cache('song_waiting_download_list_20211026_', $tempList);
-                cache('song_play_temp_url_20211026_' . $mid, $arr['data']['url'], 30);
-                header("Location: " . $arr['data']['url']);
-            } else {
-                header("status: 404 Not Found");
+            $tempList = cache('song_waiting_download_list') ?? [];
+            array_push($tempList, [
+                'mid' => $mid,
+                'url' => $url
+            ]);
+            cache('song_waiting_download_list', $tempList);
+            cache('song_play_temp_url_' . $mid, $url, 30);
+            header("Location: " . $url);
+        }
+    }
+
+    private function getMusicApiBaseUrl()
+    {
+        return rtrim(config('startadmin.music_api_base_url') ?: self::DEFAULT_MUSIC_API_BASE_URL, '/');
+    }
+
+    private function getMusicApiKey()
+    {
+        return config('startadmin.music_api_key') ?: self::DEFAULT_MUSIC_API_KEY;
+    }
+
+    private function getMusicSource()
+    {
+        $source = strtolower((string) (config('startadmin.music_api_source') ?: self::DEFAULT_MUSIC_SOURCE));
+        return in_array($source, ['wy', 'qq', 'kw', 'kg', 'mg', 'qi'], true) ? $source : self::DEFAULT_MUSIC_SOURCE;
+    }
+
+    private function requestMusicApi($endpoint, array $params = [])
+    {
+        $params['key'] = $this->getMusicApiKey();
+        $url = $this->getMusicApiBaseUrl() . '/' . ltrim($endpoint, '/') . '?' . http_build_query($params);
+        $result = curlHelper($url, 'GET');
+        if (empty($result['body'])) {
+            return null;
+        }
+        return json_decode($result['body'], true);
+    }
+
+    private function searchMusicByKeyword($keyword, $page = 1, $limit = 50)
+    {
+        $arr = $this->requestMusicApi('search', [
+            'name' => $keyword,
+            'type' => $this->getMusicSource(),
+            'page' => $page,
+            'limit' => $limit,
+            'format' => 1,
+            'pic' => 1,
+        ]);
+        if (!$arr) {
+            return [];
+        }
+
+        $list = [];
+        $source = $this->getMusicSource();
+        $songModel = new SongModel();
+        $data = isset($arr['data']) ? $arr['data'] : $arr;
+        if (!is_array($data)) {
+            return [];
+        }
+
+        foreach ($data as $song) {
+            $songId = isset($song['id']) ? (string) $song['id'] : '';
+            if ($songId === '') {
+                continue;
+            }
+            $mid = $this->buildMusicMid($songId, $source);
+            $songPicture = $this->getSongPictureFromCacheOrDb($songModel, $mid, $song['pic'] ?? '');
+            $temp = [
+                'mid' => $mid,
+                'name' => html_entity_decode((string) ($song['name'] ?? '')),
+                'pic' => $songPicture,
+                'length' => intval($song['duration'] ?? 0),
+                'singer' => $this->formatArtist($song['artist'] ?? ''),
+                'album' => $this->formatText($song['album'] ?? ''),
+            ];
+            $temp['length'] = $temp['length'] > 0 ? $temp['length'] : self::DEFAULT_SONG_LENGTH;
+            $list[] = $temp;
+            cache('song_detail_' . $mid, $temp, 3600);
+        }
+        cache("music_search_list_keyword_new_" . sha1($source . '_' . $keyword . '_' . $page), $list, 3600);
+
+        return $list;
+    }
+
+    private function syncSongDetail(SongModel $songModel, array $song)
+    {
+        $songDetailTemp = $this->getMusicInfoByMid($song['mid'], false, true, true);
+        if (!$songDetailTemp) {
+            return false;
+        }
+
+        $song['name'] = $songDetailTemp['name'] ?: $song['name'];
+        $song['singer'] = $songDetailTemp['singer'] ?: $song['singer'];
+        $song['album'] = $songDetailTemp['album'] ?: ($song['album'] ?? '');
+        $song['pic'] = $songDetailTemp['pic'] ?: $song['pic'];
+        $song['length'] = intval($songDetailTemp['length'] ?? 0) ?: intval($song['length'] ?? 0) ?: self::DEFAULT_SONG_LENGTH;
+
+        $songModel->where('song_mid', $song['mid'])->update([
+            'song_pic' => $song['pic'],
+            'song_length' => $song['length'],
+        ]);
+        cache("song_picture_" . $song['mid'], $song['pic'], 3600);
+
+        return $song;
+    }
+
+    private function getMusicInfoByMid($mid, $withUrl = false, $withPic = false, $withLrc = false)
+    {
+        $parsed = $this->parseMusicMid($mid);
+        if ($parsed['is_upload']) {
+            return false;
+        }
+
+        $arr = $this->requestMusicApi('info', [
+            'id' => $parsed['id'],
+            'type' => $parsed['source'],
+            'url' => $withUrl ? 1 : 0,
+            'pic' => $withPic ? 1 : 0,
+            'lrc' => $withLrc ? 1 : 0,
+        ]);
+        if (!$arr || intval($arr['code'] ?? 0) !== 1 || empty($arr['data']) || !is_array($arr['data'])) {
+            return false;
+        }
+
+        $data = $arr['data'];
+        $lrc = (string) ($data['lrc'] ?? '');
+
+        return [
+            'mid' => $parsed['mid'],
+            'name' => $this->formatText($data['name'] ?? ''),
+            'album' => $this->formatText($data['album'] ?? ''),
+            'singer' => $this->formatArtist($data['artist'] ?? ''),
+            'pic' => (string) ($data['pic'] ?? ''),
+            'url' => (string) ($data['url'] ?? ''),
+            'lrc' => $lrc,
+            'length' => $this->guessSongLength($lrc),
+        ];
+    }
+
+    private function getMusicLrcByMid($mid)
+    {
+        $parsed = $this->parseMusicMid($mid);
+        if ($parsed['is_upload']) {
+            return [];
+        }
+
+        $arr = $this->requestMusicApi('lrc', [
+            'id' => $parsed['id'],
+            'type' => $parsed['source'],
+        ]);
+        if (!$arr || intval($arr['code'] ?? 0) !== 1 || empty($arr['data'])) {
+            return [];
+        }
+
+        return $this->parseLrc((string) $arr['data']);
+    }
+
+    private function getMusicPlayUrlByMid($mid)
+    {
+        $parsed = $this->parseMusicMid($mid);
+        if ($parsed['is_upload']) {
+            return false;
+        }
+
+        $arr = $this->requestMusicApi('url', [
+            'id' => $parsed['id'],
+            'type' => $parsed['source'],
+        ]);
+        if (!$arr || intval($arr['code'] ?? 0) !== 1 || empty($arr['data'])) {
+            return false;
+        }
+
+        return (string) $arr['data'];
+    }
+
+    private function parseLrc($lrc)
+    {
+        $result = [];
+        $rows = preg_split("/\r\n|\n|\r/", $lrc);
+        foreach ($rows as $row) {
+            if (!preg_match_all('/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/', $row, $matches, PREG_SET_ORDER)) {
+                continue;
+            }
+            $lineLyric = trim(preg_replace('/\[[^\]]+\]/', '', $row));
+            foreach ($matches as $match) {
+                $fraction = isset($match[3]) ? str_pad($match[3], 3, '0') : '000';
+                $time = intval($match[1]) * 60 + intval($match[2]) + intval($fraction) / 1000;
+                $result[] = [
+                    'lineLyric' => $lineLyric,
+                    'time' => $time,
+                ];
             }
         }
+
+        usort($result, function ($a, $b) {
+            if ($a['time'] == $b['time']) {
+                return 0;
+            }
+            return $a['time'] < $b['time'] ? -1 : 1;
+        });
+
+        return $result;
+    }
+
+    private function guessSongLength($lrc)
+    {
+        $max = 0;
+        if (preg_match_all('/\[(\d{2}):(\d{2})(?:\.(\d{1,3}))?\]/', $lrc, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $fraction = isset($match[3]) ? str_pad($match[3], 3, '0') : '000';
+                $seconds = intval($match[1]) * 60 + intval($match[2]) + intval($fraction) / 1000;
+                if ($seconds > $max) {
+                    $max = $seconds;
+                }
+            }
+        }
+
+        return $max > 0 ? (int) ceil($max) : self::DEFAULT_SONG_LENGTH;
+    }
+
+    private function buildMusicMid($id, $source = null)
+    {
+        return ($source ?: $this->getMusicSource()) . ':' . (string) $id;
+    }
+
+    private function parseMusicMid($mid)
+    {
+        $mid = (string) $mid;
+        if ($this->isUploadedSong($mid)) {
+            return [
+                'mid' => $mid,
+                'id' => ltrim($mid, '-'),
+                'source' => null,
+                'is_upload' => true,
+            ];
+        }
+
+        if (strpos($mid, ':') !== false) {
+            [$source, $id] = explode(':', $mid, 2);
+            return [
+                'mid' => $mid,
+                'id' => $id,
+                'source' => $this->normalizeMusicSource($source),
+                'is_upload' => false,
+            ];
+        }
+
+        return [
+            'mid' => $mid,
+            'id' => $mid,
+            'source' => $this->getMusicSource(),
+            'is_upload' => false,
+        ];
+    }
+
+    private function normalizeMusicSource($source)
+    {
+        $source = strtolower((string) $source);
+        return in_array($source, ['wy', 'qq', 'kw', 'kg', 'mg', 'qi'], true) ? $source : $this->getMusicSource();
+    }
+
+    private function isUploadedSong($mid)
+    {
+        return is_numeric((string) $mid) && intval($mid) < 0;
+    }
+
+    private function isExternalSong($mid)
+    {
+        return !$this->isUploadedSong($mid);
+    }
+
+    private function getUploadAttachId($mid)
+    {
+        return abs(intval($mid));
+    }
+
+    private function getSongPictureFromCacheOrDb(SongModel $songModel, $mid, $fallback = '')
+    {
+        $songPicture = $fallback ?: config('startadmin.static_url') . '/new/images/logo.png';
+        $songPictureFromCache = cache("song_picture_" . $mid) ?? false;
+        if ($songPictureFromCache) {
+            return $songPictureFromCache;
+        }
+
+        $songFromDatabase = $songModel->where('song_mid', $mid)->find();
+        if ($songFromDatabase && $songFromDatabase['song_pic']) {
+            return $songFromDatabase['song_pic'];
+        }
+
+        return $songPicture;
+    }
+
+    private function formatArtist($artist)
+    {
+        if (is_array($artist)) {
+            $artist = implode('/', $artist);
+        }
+        return str_replace('&apos;', "'", html_entity_decode((string) $artist));
+    }
+
+    private function formatText($text)
+    {
+        return str_replace('&apos;', "'", html_entity_decode((string) $text));
     }
 }

@@ -8,6 +8,8 @@ use app\model\Message as MessageModel;
 use app\model\Song as SongModel;
 use app\model\Room as RoomModel;
 use app\model\User as UserModel;
+use app\service\ContentSafetyService;
+use app\service\OpenAiRobotService;
 use think\App;
 
 class Message extends BaseController
@@ -215,9 +217,9 @@ class Message extends BaseController
             return jerr("消息范围参数缺失");
         }
         $where = '';
-        $msg_resource = (input('msg'));
+        $msg_resource = (string) input('msg', '');
         $msg_decode = rawurldecode($msg_resource);
-        $msg_resource = rawurldecode(input('resource'));
+        $msg_resource = rawurldecode((string) input('resource', ''));
         $room = $roomModel->getRoomById($room_id);
 
         if (!$room) {
@@ -243,9 +245,22 @@ class Message extends BaseController
         }
 
         $type = input('type');
+        $contentSafety = new ContentSafetyService();
+        $safetyContext = [
+            'room_id' => $room_id,
+            'user_id' => $this->user['user_id'] ?? '',
+            'user_name' => $this->user['user_name'] ?? '',
+            'user_type' => getIsAdmin($this->user) ? 'admin' : 'user',
+            'app_id' => $this->user['app_id'] ?? '',
+            'ip' => getClientIp(),
+        ];
         if ($type == 'text') {
             if (!str_replace(' ', '', $msg_decode)) {
                 return jerr("咱好歹说点啥吧？");
+            }
+            $textSafety = $contentSafety->moderateText($msg_decode, $safetyContext);
+            if (!$textSafety['ok']) {
+                return jerr($textSafety['message']);
             }
             $weapp_appid = config('startadmin.weapp_appid'); //小程序APPID
             $weapp_appkey = config("startadmin.weapp_appkey"); //小程序的APPKEY
@@ -316,22 +331,26 @@ class Message extends BaseController
 
                 if ($this->user['user_id'] != $room['room_user'] && $isVip) {
                     //非房主
-                    if ((time() > strtotime(date('Y-m-d 18:00:00')) || time() < strtotime(date('Y-m-d 09:00:00'))) && strpos(rawurldecode(input('msg')), 'images/emoji') === false && strpos(rawurldecode(input('msg')), 'img.doutula.com') === false) {
+                    if ((time() > strtotime(date('Y-m-d 18:00:00')) || time() < strtotime(date('Y-m-d 09:00:00'))) && strpos($msg_decode, 'images/emoji') === false && strpos($msg_decode, 'img.doutula.com') === false) {
                         return jerr("18:00-09:00禁止发送自定义上传图片");
                     }
                 }
-                if (strpos(rawurldecode(input('msg')), rawurldecode($msg_resource)) !== false) {
+                if (strpos($msg_decode, $msg_resource) !== false) {
                 } else {
                     return jerr('图片发送失败,我怀疑你在搞事情');
                 }
-                if (strpos(rawurldecode(input('msg')), 'https://') !== false || strpos(rawurldecode(input('msg')), 'http://') !== false) {
+                if (strpos($msg_decode, 'https://') !== false || strpos($msg_decode, 'http://') !== false) {
                     //绝对路径
                     if (
-                        strpos(rawurldecode(input('msg')), config('startadmin.api_url')) === false && strpos(rawurldecode(input('msg')), config('startadmin.static_url')) === false &&
-                        strpos(rawurldecode(input('msg')), 'img.doutula.com') === false
+                        strpos($msg_decode, config('startadmin.api_url')) === false && strpos($msg_decode, config('startadmin.static_url')) === false &&
+                        strpos($msg_decode, 'img.doutula.com') === false
                     ) {
                         return jerr('暂不支持站外图');
                     }
+                }
+                $imageSafety = $contentSafety->moderateImage($msg_decode, $safetyContext);
+                if (!$imageSafety['ok']) {
+                    return jerr($imageSafety['message']);
                 }
             }
         }
@@ -339,8 +358,8 @@ class Message extends BaseController
         $jump_room = false;
         switch ($type) {
             case 'text':
-                if (strpos(rawurldecode(input('msg')), config('startadmin.frontend_url')) !== false) {
-                    if (preg_match('/com\/(\d+)/', rawurldecode(input('msg')), $match)) {
+                if (strpos($msg_decode, config('startadmin.frontend_url')) !== false) {
+                    if (preg_match('/com\/(\d+)/', $msg_decode, $match)) {
                         $jump_id = $match[1];
                         $jump_room = $roomModel->getRoomById($jump_id);
                         if ($jump_room) {
@@ -516,50 +535,36 @@ class Message extends BaseController
                         $ifRobotEnable = true;
                     }
                 }
-                if ($ifRobotEnable && config('startadmin.tencent_ai_appid') && config('startadmin.tencent_ai_appkey')) {
-                    $url = "https://openai.weixin.qq.com/openapi/sign/Qn8nnAYcBJZbONOEgjTkABxP3VoBsa";
-                    $postData = [
-                        "userid" => $this->user['user_id'],
-                        "username" => $this->user['user_name']
-                    ];
-                    $ret = curlHelper($url, 'POST', http_build_query($postData));
-                    $json = json_decode($ret['body'], true);
-                    if ($json['signature']) {
-                        $signature = $json['signature'];
-
-                        $url = "https://openai.weixin.qq.com/openapi/aibot/Qn8nnAYcBJZbONOEgjTkABxP3VoBsa";
-                        $postData = [
-                            "signature" => $signature,
-                            "query" => $msg_decode,
-                            "username" => $this->user['user_name']
-                        ];
-                        $ret = curlHelper($url, 'POST', http_build_query($postData));
-                        $json = json_decode($ret['body'], true);
-                        if ($json['answer'] && $json['answer_type']) {
-                            switch ($json['answer_type']) {
-                                case 'text':
-                                    $robotInfo = $this->userModel->where("user_id", 1)->find();
-                                    $msg = [
-                                        'type' => 'text',
-                                        'content' => rawurlencode(rawurlencode($json['answer'])),
-                                        'where' => $where,
-                                        'at' => [
-                                            'user_id' => $this->user['user_id'],
-                                            'user_name' => $this->user['user_name']
-                                        ],
-                                        'message_id' => 0,
-                                        'message_time' => time(),
-                                        'resource' => rawurlencode(rawurlencode($json['answer'])),
-                                        'user' => getUserData($robotInfo),
-                                    ];
-                                    sendWebsocketMessage('channel', $room_id, $msg);
-                                    break;
-                                default:
-                                    print_r($json);
+                if ($ifRobotEnable) {
+                    $robotService = new OpenAiRobotService();
+                    if ($robotService->isEnabled()) {
+                        $robotReply = $robotService->reply($msg_decode, [
+                            'room_id' => $room_id,
+                            'user_id' => $this->user['user_id'],
+                            'user_name' => $this->user['user_name'],
+                            'app_id' => $this->user['app_id'] ?? '',
+                            'ip' => getClientIp(),
+                        ]);
+                        if ($robotReply['ok'] && !empty($robotReply['answer'])) {
+                            $robotInfo = $this->userModel->where("user_id", 1)->find();
+                            if ($robotInfo) {
+                                $robotText = trim((string) $robotReply['answer']);
+                                $msg = [
+                                    'type' => 'text',
+                                    'content' => rawurlencode(rawurlencode($robotText)),
+                                    'where' => $where,
+                                    'at' => [
+                                        'user_id' => $this->user['user_id'],
+                                        'user_name' => $this->user['user_name']
+                                    ],
+                                    'message_id' => 0,
+                                    'message_time' => time(),
+                                    'resource' => rawurlencode(rawurlencode($robotText)),
+                                    'user' => getUserData($robotInfo),
+                                ];
+                                sendWebsocketMessage('channel', $room_id, $msg);
                             }
                         }
-
-                        return jok('');
                     }
                 }
                 return jok('');

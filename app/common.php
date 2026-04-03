@@ -99,7 +99,7 @@ function jerr($msg = 'error', $code = 500)
  */
 function encodePassword($password, $salt)
 {
-    return sha1($password . $salt . $password . $salt);
+    return sha1($password . $salt . md5($password . $salt));
 }
 /**
  * 密码校验 6-16
@@ -167,6 +167,61 @@ function getClassMethods($class)
 function getFullDomain()
 {
     return ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? $_SERVER['REQUEST_SCHEME']) . "://" . $_SERVER['HTTP_HOST'];
+}
+function isCurrentDomainUrl($url)
+{
+    if (!filter_var($url, FILTER_VALIDATE_URL)) {
+        return false;
+    }
+    $urlHost = parse_url($url, PHP_URL_HOST);
+    $currentHost = parse_url(getFullDomain(), PHP_URL_HOST);
+    if (!$urlHost || !$currentHost || strcasecmp($urlHost, $currentHost) !== 0) {
+        return false;
+    }
+
+    $urlPort = parse_url($url, PHP_URL_PORT);
+    $currentPort = parse_url(getFullDomain(), PHP_URL_PORT);
+    $urlScheme = strtolower(parse_url($url, PHP_URL_SCHEME) ?? '');
+    $currentScheme = strtolower(parse_url(getFullDomain(), PHP_URL_SCHEME) ?? '');
+
+    $defaultPort = function ($scheme) {
+        switch ($scheme) {
+            case 'http':
+                return 80;
+            case 'https':
+                return 443;
+            default:
+                return null;
+        }
+    };
+
+    $normalizedUrlPort = $urlPort ?: $defaultPort($urlScheme);
+    $normalizedCurrentPort = $currentPort ?: $defaultPort($currentScheme);
+    return $normalizedUrlPort === $normalizedCurrentPort;
+}
+function isRelativeAssetPath($path)
+{
+    if ($path === '' || preg_match('/^\s+$/', $path)) {
+        return false;
+    }
+    if (preg_match('/^(?:[a-z][a-z0-9+\-.]*:)?\/\//i', $path)) {
+        return false;
+    }
+    if (preg_match('/^[a-z][a-z0-9+\-.]*:/i', $path)) {
+        return false;
+    }
+    return true;
+}
+function isAllowedAvatarPath($path)
+{
+    $path = trim($path);
+    if ($path === '') {
+        return false;
+    }
+    if (isCurrentDomainUrl($path)) {
+        return true;
+    }
+    return isRelativeAssetPath($path);
 }
 /**
  * 获取客户端IP
@@ -433,7 +488,7 @@ function getTicket($key)
  * @param  mixed 请求COOKIES字符串
  * @return void
  */
-function curlHelper($url, $method = 'GET', $data = null, $header = [], $cookies = "")
+function curlHelper($url, $method = 'GET', $data = null, $header = [], $cookies = ""): array
 {
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);

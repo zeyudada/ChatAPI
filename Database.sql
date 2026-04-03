@@ -60,7 +60,7 @@ CREATE TABLE `sa_app` (
 --
 
 INSERT INTO `sa_app` (`app_id`, `app_key`, `app_name`, `app_url`, `app_user`, `app_scope`, `app_status`, `app_createtime`, `app_updatetime`) VALUES
-(1, '请重置后对接', 'BBBUG', 'https://bbbug.com', 1, '', 0, 0, 0),
+(1, '请重置后对接', 'BBBUG', 'https://music.eggedu.cn', 1, '', 0, 0, 0),
 (1001, '请重置后对接', 'Gitee', 'https://gitee.com/#extra#', 1, '', 0, 0, 0),
 (1002, '请重置后对接', 'OSChina', 'https://my.oschina.net/#extra#', 1, '', 0, 0, 0),
 (1003, '请重置后对接', 'QQ', 'https://hamm.cn', 1, '', 0, 0, 0),
@@ -122,7 +122,7 @@ INSERT INTO `sa_conf` (`conf_id`, `conf_key`, `conf_value`, `conf_desc`, `conf_i
 (51, 'email_remark', 'BBBUG TEAM', '邮箱签名', 0, 0, 0, 1598539052),
 (52, 'email_port', '465', '邮箱端口号', 0, 0, 0, 1598539052),
 (53, 'websocket_http', 'http://127.0.0.1:10012/', 'WebsocketHTTP请求地址', 0, 0, 0, 1598539052),
-(54, 'websocket_token', 'wss_bbbug_com', 'Websocket验证串', 0, 0, 0, 1598539052),
+(54, 'websocket_token', 'wss_eggedu_cn', 'Websocket验证串', 0, 0, 0, 1598539052),
 (55, 'api_guest_token', '45af3cfe44942c956e026d5fd58f0feffbd3a237', '临时用户access_token', 0, 0, 0, 1598539052),
 (56, 'frontend_url', '', '前端地址', 0, 0, 0, 0),
 (57, 'api_url', '', 'API地址', 0, 0, 0, 0),
@@ -224,7 +224,7 @@ INSERT INTO `sa_room` (`room_id`, `room_user`, `room_addsongcd`, `room_addcount`
 CREATE TABLE `sa_song` (
   `song_id` int(11) NOT NULL,
   `song_user` int(11) NOT NULL DEFAULT '0',
-  `song_mid` bigint(20) NOT NULL DEFAULT '0',
+  `song_mid` varchar(64) NOT NULL DEFAULT '0',
   `song_name` varchar(255) NOT NULL DEFAULT '' COMMENT '歌曲名称',
   `song_singer` varchar(255) NOT NULL DEFAULT '' COMMENT '歌手',
   `song_pic` varchar(255) NOT NULL DEFAULT '',

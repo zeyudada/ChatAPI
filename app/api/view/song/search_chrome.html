@@ -62,11 +62,11 @@
 </head>
 
 <body>
-    <div class="item" onclick="location.replace('https://bbbug.com')">返回BBBUG主站</div>
+    <div class="item" onclick="location.replace('https://music.eggedu.cn')">返回主站</div>
     <?php 
     foreach($list as $item){
     ?>
-    <div class="item" onclick="window.open('https://api.bbbug.com/api/song/playurl?mid={$item[\'mid\']}')">
+    <div class="item" onclick="window.open('https://music.eggedu.cn/api/song/playurl?mid={$item[\'mid\']}')">
         <div class="pic"><img src="{$item['pic']}"/></div>
         <div class="title">{$item['name']} - {$item['singer']}</div>
         <div class="desc">{$item['album']}</div>

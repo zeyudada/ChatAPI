@@ -4,9 +4,9 @@
 <Description>一个快捷的MP3歌曲搜索工具</Description>
 <Tags>BBBUG.COM</Tags>
 <Contact>admin@hamm.cn</Contact>
-<Url type="application/atom+xml" template="https://api.bbbug.com/api/song/searchChrome?keyword={searchTerms}" />
-<Url type="application/rss+xml" template="https://api.bbbug.com/api/song/searchChrome?keyword={searchTerms}" />
-<Url type="text/html" template="https://api.bbbug.com/api/song/searchChrome?keyword={searchTerms}" />
+<Url type="application/atom+xml" template="https://music.eggedu.cn/api/song/searchChrome?keyword={searchTerms}" />
+<Url type="application/rss+xml" template="https://music.eggedu.cn/api/song/searchChrome?keyword={searchTerms}" />
+<Url type="text/html" template="https://music.eggedu.cn/api/song/searchChrome?keyword={searchTerms}" />
 <LongName>BBBUG开放音乐MP3搜索工具</LongName>
 <Query role="example" searchTerms="BBBUG" />
 <Query role="example" searchTerms="周杰伦" />
